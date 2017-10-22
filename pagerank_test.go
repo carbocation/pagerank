@@ -1,7 +1,6 @@
 package pagerank
 
 import (
-	"fmt"
 	"runtime"
 	"sync"
 	"testing"
@@ -72,11 +71,11 @@ func TestPagerank(t *testing.T) {
 		}
 		t.Logf("%s (%d): %d traversals, PR %.4f", node.name, node.ID(), node.Traversals(), pr)
 	}
-	fmt.Printf("%+v", g)
+	t.Logf("%+v", g)
 }
 
 func TestPagerankParallel(t *testing.T) {
-	graphs := make([]*graph, runtime.NumCPU(), runtime.NumCPU())
+	graphs := make([]*Graph, runtime.NumCPU(), runtime.NumCPU())
 	for i := range graphs {
 		graphs[i] = buildNewGraph(wikiStructure)
 	}
@@ -85,8 +84,8 @@ func TestPagerankParallel(t *testing.T) {
 	wg := sync.WaitGroup{}
 	for _, g := range graphs {
 		wg.Add(1)
-		go func(g *graph) {
-			g.Calculate(0.15, 1000000)
+		go func(g *Graph) {
+			g.Calculate(0.15, 1000)
 			wg.Done()
 		}(g)
 	}
@@ -118,10 +117,10 @@ func TestPagerankParallel(t *testing.T) {
 		}
 		t.Logf("%s (%d): %d traversals, PR %.4f", node.name, node.ID(), node.Traversals(), pr)
 	}
-	fmt.Printf("%+v", graph)
+	t.Logf("%+v", graph)
 }
 
-func buildNewGraph(fromSource []adjacency) *graph {
+func buildNewGraph(fromSource []adjacency) *Graph {
 	g := NewGraph(31337)
 
 	// Map our nodes

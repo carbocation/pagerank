@@ -24,10 +24,9 @@ type Node interface {
 	Traverse()          // Increment traversal counter for this node and mark it changed
 	Traversals() uint64 // This node has been traversed N times
 	IsStarter() bool    // Should we start iterations from this node?
-	//IsChanged() bool    // Was this node changed by traversals?
 }
 
-type graph struct {
+type Graph struct {
 	nodeMap    map[Node]int
 	nodes      []Node
 	edges      [][]Node
@@ -39,8 +38,8 @@ type graph struct {
 	calculated      bool
 }
 
-func NewGraph(seed int64) *graph {
-	return &graph{
+func NewGraph(seed int64) *Graph {
+	return &Graph{
 		randomSource: rand.New(rand.NewSource(seed)),
 		nodeMap:      make(map[Node]int),
 		nodes:        make([]Node, 0),
@@ -48,7 +47,7 @@ func NewGraph(seed int64) *graph {
 	}
 }
 
-func (g *graph) AddEdge(nodeFrom, nodeTo Node) {
+func (g *Graph) AddEdge(nodeFrom, nodeTo Node) {
 	if _, exists := g.nodeMap[nodeFrom]; !exists {
 		g.nodes = append(g.nodes, nodeFrom)
 		g.edges = append(g.edges, make([]Node, 0))
@@ -64,7 +63,7 @@ func (g *graph) AddEdge(nodeFrom, nodeTo Node) {
 	g.edges[g.nodeMap[nodeFrom]] = append(g.edges[g.nodeMap[nodeFrom]], nodeTo)
 }
 
-func (g *graph) Pagerank(node Node, normalized bool) (float32, error) {
+func (g *Graph) Pagerank(node Node, normalized bool) (float32, error) {
 	if !g.calculated {
 		return 0, fmt.Errorf("Pagerank graph has not yet been calculated")
 	}
@@ -82,11 +81,11 @@ func (g *graph) Pagerank(node Node, normalized bool) (float32, error) {
 	return float32(float64(len(g.edges)) * float64(node.Traversals()) / float64(g.traversals)), nil
 }
 
-func (g *graph) outlinks(node Node) []Node {
+func (g *Graph) outlinks(node Node) []Node {
 	return g.edges[g.nodeMap[node]]
 }
 
-func (g *graph) traverseFrom(node Node) {
+func (g *Graph) traverseFrom(node Node) {
 	node.Traverse()
 
 	// Terminate the traversal with probability 1/g.jumpProbability
@@ -106,7 +105,7 @@ func (g *graph) traverseFrom(node Node) {
 }
 
 // Calculate runs the Pagerank computation on your graph in-place.
-func (g *graph) Calculate(JumpProbability float32, RoundsPerNode int) {
+func (g *Graph) Calculate(JumpProbability float32, RoundsPerNode int) {
 	g.jumpProbability = JumpProbability
 
 	for _, node := range g.nodes {
