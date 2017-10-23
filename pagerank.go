@@ -20,47 +20,30 @@ import (
 )
 
 type Node interface {
-	ID() uint64         // Node identifier
-	Traverse()          // Increment traversal counter for this node and mark it changed
-	Traversals() uint64 // This node has been traversed N times
-	IsStarter() bool    // Should we start iterations from this node?
+	IsStarter() bool // Should we start iterations from this node?
+	Traverse()
+	Traversals() uint64
 }
 
 type Graph struct {
-	nodeMap    map[Node]int
-	nodes      []Node
-	edges      [][]Node
-	traversals uint64
+	// Provided by the user in the constructor
+	nodes    *[]Node
+	edgesFor func(Node) []Node
 
 	// Caches and other unexported values
+	traversals      uint64
 	randomSource    *rand.Rand
 	jumpProbability float32
 	calculated      bool
+	summed          bool
 }
 
-func NewGraph(seed int64) *Graph {
+func NewGraph(seed int64, edgesFor func(Node) []Node, nodes *[]Node) *Graph {
 	return &Graph{
 		randomSource: rand.New(rand.NewSource(seed)),
-		nodeMap:      make(map[Node]int),
-		nodes:        make([]Node, 0),
-		edges:        make([][]Node, 0),
+		edgesFor:     edgesFor,
+		nodes:        nodes,
 	}
-}
-
-func (g *Graph) AddEdge(nodeFrom, nodeTo Node) {
-	if _, exists := g.nodeMap[nodeFrom]; !exists {
-		g.nodes = append(g.nodes, nodeFrom)
-		g.edges = append(g.edges, make([]Node, 0))
-		g.nodeMap[nodeFrom] = len(g.nodes) - 1
-	}
-
-	if _, exists := g.nodeMap[nodeTo]; !exists {
-		g.nodes = append(g.nodes, nodeTo)
-		g.edges = append(g.edges, make([]Node, 0))
-		g.nodeMap[nodeTo] = len(g.nodes) - 1
-	}
-
-	g.edges[g.nodeMap[nodeFrom]] = append(g.edges[g.nodeMap[nodeFrom]], nodeTo)
 }
 
 func (g *Graph) Pagerank(node Node, normalized bool) (float32, error) {
@@ -68,21 +51,18 @@ func (g *Graph) Pagerank(node Node, normalized bool) (float32, error) {
 		return 0, fmt.Errorf("Pagerank graph has not yet been calculated")
 	}
 
-	if g.traversals == 0 {
-		for _, node := range g.nodes {
+	if !g.summed {
+		for _, node := range *g.nodes {
 			g.traversals += node.Traversals()
 		}
+		g.summed = true
 	}
 
 	if normalized {
 		return float32(float64(node.Traversals()) / float64(g.traversals)), nil
 	}
 
-	return float32(float64(len(g.edges)) * float64(node.Traversals()) / float64(g.traversals)), nil
-}
-
-func (g *Graph) outlinks(node Node) []Node {
-	return g.edges[g.nodeMap[node]]
+	return float32(float64(len(*g.nodes)) * float64(node.Traversals()) / float64(g.traversals)), nil
 }
 
 func (g *Graph) traverseFrom(node Node) {
@@ -93,7 +73,7 @@ func (g *Graph) traverseFrom(node Node) {
 		return
 	}
 
-	outlinks := g.outlinks(node)
+	outlinks := g.edgesFor(node)
 
 	// Terminate the traversal if the node has no outgoing links
 	if len(outlinks) < 1 {
@@ -108,7 +88,7 @@ func (g *Graph) traverseFrom(node Node) {
 func (g *Graph) Calculate(JumpProbability float32, RoundsPerNode int) {
 	g.jumpProbability = JumpProbability
 
-	for _, node := range g.nodes {
+	for _, node := range *g.nodes {
 		// Only start at starter nodes
 		if !node.IsStarter() {
 			continue
