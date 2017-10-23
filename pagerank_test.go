@@ -3,32 +3,14 @@ package pagerank
 import (
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"testing"
 )
 
 // Satisfies the pagerank.Node interface
 type nodeExample struct {
-	name       string
-	id         uint64
-	traversals uint64
-	nonstarter bool
-}
-
-func (n *nodeExample) ID() uint64 {
-	return n.id
-}
-
-func (n *nodeExample) Traversals() uint64 {
-	return atomic.LoadUint64(&(n.traversals))
-}
-
-func (n *nodeExample) IsStarter() bool {
-	return !n.nonstarter
-}
-
-func (n *nodeExample) Traverse() {
-	atomic.AddUint64(&(n.traversals), 1)
+	Base
+	name string
+	id   uint64
 }
 
 type adjacency struct {
@@ -68,7 +50,7 @@ func TestPagerank(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		t.Logf("%s (%d): %d traversals, PR %.4f", node.name, node.ID(), node.Traversals(), pr)
+		t.Logf("%s (%d): %d traversals, PR %.4f", node.name, node.id, node.Traversals(), pr)
 	}
 	t.Logf("%+v", g)
 }
@@ -98,7 +80,7 @@ func TestPagerankParallel(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		t.Logf("%s (%d): %d traversals, PR %.4f", node.name, node.ID(), node.Traversals(), pr)
+		t.Logf("%s (%d): %d traversals, PR %.4f", node.name, node.id, node.Traversals(), pr)
 	}
 	t.Logf("%+v", graph)
 }

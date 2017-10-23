@@ -27,12 +27,12 @@ type Node interface {
 
 type Graph struct {
 	// Provided by the user in the constructor
-	nodes    *[]Node
-	edgesFor func(Node) []Node
+	nodes        *[]Node
+	edgesFor     func(Node) []Node
+	randomSource *rand.Rand
 
 	// Caches and other unexported values
 	traversals      uint64
-	randomSource    *rand.Rand
 	jumpProbability float32
 	calculated      bool
 	summed          bool
