@@ -3,6 +3,7 @@ package pagerank
 import (
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -12,7 +13,6 @@ type nodeExample struct {
 	id         uint64
 	traversals uint64
 	nonstarter bool
-	changed    bool
 }
 
 func (n *nodeExample) ID() uint64 {
@@ -20,7 +20,7 @@ func (n *nodeExample) ID() uint64 {
 }
 
 func (n *nodeExample) Traversals() uint64 {
-	return n.traversals
+	return atomic.LoadUint64(&(n.traversals))
 }
 
 func (n *nodeExample) IsStarter() bool {
@@ -28,8 +28,7 @@ func (n *nodeExample) IsStarter() bool {
 }
 
 func (n *nodeExample) Traverse() {
-	n.traversals++
-	n.changed = true
+	atomic.AddUint64(&(n.traversals), 1)
 }
 
 type adjacency struct {
@@ -63,7 +62,7 @@ func TestPagerank(t *testing.T) {
 	// Compute
 	g.Calculate(0.15, 500)
 
-	for _, nodeMasked := range g.nodes {
+	for _, nodeMasked := range *g.nodes {
 		node := nodeMasked.(*nodeExample)
 		pr, err := g.Pagerank(node, true)
 		if err != nil {
@@ -85,7 +84,7 @@ func TestPagerankParallel(t *testing.T) {
 	for _, g := range graphs {
 		wg.Add(1)
 		go func(g *Graph) {
-			g.Calculate(0.15, 1000)
+			g.Calculate(0.15, 100000)
 			wg.Done()
 		}(g)
 	}
@@ -93,23 +92,7 @@ func TestPagerankParallel(t *testing.T) {
 
 	graph := graphs[0]
 
-	var masterNode, derivedNode *nodeExample
-	for i, g := range graphs {
-		if i == 0 {
-			continue
-		}
-
-		for j, node := range g.nodes {
-			masterNode = graph.nodes[j].(*nodeExample)
-			derivedNode = node.(*nodeExample)
-			masterNode.traversals += derivedNode.traversals
-			if derivedNode.changed {
-				masterNode.changed = true
-			}
-		}
-	}
-
-	for _, nodeMasked := range graph.nodes {
+	for _, nodeMasked := range *graph.nodes {
 		node := nodeMasked.(*nodeExample)
 		pr, err := graph.Pagerank(node, true)
 		if err != nil {
@@ -121,11 +104,11 @@ func TestPagerankParallel(t *testing.T) {
 }
 
 func buildNewGraph(fromSource []adjacency) *Graph {
-	g := NewGraph(31337)
-
 	// Map our nodes
-	nodes := make([]*nodeExample, 0)
+	nodes := make([]Node, 0)
 	nodeMap := make(map[string]int)
+	edges := make(map[Node][]Node)
+
 	letters := make([]string, 2, 2)
 	var i uint64
 	for _, link := range fromSource {
@@ -140,8 +123,15 @@ func buildNewGraph(fromSource []adjacency) *Graph {
 			i++
 		}
 		//append(nodes[nodeMap[link.Left]].)
-		g.AddEdge(nodes[nodeMap[link.Left]], nodes[nodeMap[link.Right]])
+		//g.AddEdge(nodes[nodeMap[link.Left]], nodes[nodeMap[link.Right]])
+		edges[nodes[nodeMap[letters[0]]]] = append(edges[nodes[nodeMap[letters[0]]]], nodes[nodeMap[letters[1]]])
 	}
+
+	getEdges := func(n Node) []Node {
+		return edges[n]
+	}
+
+	g := NewGraph(31337, getEdges, &nodes)
 
 	return g
 }
